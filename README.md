@@ -1,6 +1,8 @@
 # App Store Screenshots Generator
 
-A [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code) that generates production-ready App Store screenshots for iOS apps. It scaffolds a Next.js project, designs advertisement-style screenshots, and exports them at all required Apple resolutions.
+A skill for AI-powered coding agents (Claude Code, Cursor, Windsurf, etc.) that generates production-ready App Store screenshots for iOS apps. It scaffolds a Next.js project, designs advertisement-style screenshots, and exports them at all required Apple resolutions.
+
+![Example output — Bloom coffee tracking app](example.png)
 
 ## What it does
 
@@ -17,15 +19,19 @@ A [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code) that gener
 
 ## Install
 
-```bash
-claude skill add /path/to/app-store-screenshots
-```
-
-Or clone this repo into your Claude Code skills directory:
+### Claude Code
 
 ```bash
-git clone https://github.com/user/app-store-screenshots ~/.claude/skills/app-store-screenshots
+git clone https://github.com/ParthJadhav/app-store-screenshots ~/.claude/skills/app-store-screenshots
 ```
+
+### Cursor / Windsurf / Other agents
+
+Copy the `app-store-screenshots/SKILL.md` file into your project's rules or instructions directory (e.g., `.cursor/rules/`, `.windsurfrules`, or wherever your agent reads custom instructions from). Also copy `app-store-screenshots/mockup.png` into your project.
+
+### Manual
+
+Just drop the `SKILL.md` contents into your agent's system prompt or project instructions. The skill is a self-contained markdown document with all the guidelines needed.
 
 ## Usage
 
