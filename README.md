@@ -1,3 +1,6 @@
+### NOTE: MAKE SURE TO USE 6.1 INCH simulator to capture starting screenshots
+this will save u from adjusting the images later
+
 # App Store Screenshots Generator
 
 A skill for AI-powered coding agents (Claude Code, Cursor, Windsurf, etc.) that generates production-ready App Store screenshots for iOS apps. It scaffolds a Next.js project, designs advertisement-style screenshots, and exports them at all required Apple resolutions.
