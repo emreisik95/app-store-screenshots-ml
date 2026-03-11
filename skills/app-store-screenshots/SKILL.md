@@ -17,14 +17,97 @@ Build a Next.js page that renders App Store screenshots as **advertisements** (n
 
 Before writing ANY code, ask the user all of these. Do not proceed until you have answers:
 
+### Auto-Detect Before Asking
+
+Before asking the user anything, scan the project to auto-detect what you can. This reduces questions and shows competence:
+
+#### App Icon Auto-Detection
+
+Search these locations (in order) for the app icon:
+
+```bash
+# iOS / React Native / Expo
+find . -path "*/AppIcon*" -name "*.png" | head -5
+find . -path "*/Images.xcassets/AppIcon*" -name "*.png" | sort -r | head -1
+find . -name "app-icon.png" -o -name "appicon.png" -o -name "icon.png" | head -5
+
+# Expo specifically
+# Check app.json or app.config.js for "icon" field
+cat app.json 2>/dev/null | grep -o '"icon":\s*"[^"]*"'
+
+# Flutter
+find . -path "*/mipmap-xxxhdpi/*" -name "*.png" | head -1
+find . -name "ic_launcher.png" | head -1
+
+# Web / PWA
+find . -name "favicon.png" -o -name "logo.png" -o -name "icon-512.png" | head -5
+# Check manifest.json for icon paths
+cat public/manifest.json 2>/dev/null | grep -o '"src":\s*"[^"]*"'
+
+# Generic
+find . -name "*.png" -path "*/icon*" | head -5
+find . -name "*.png" -path "*/logo*" | head -5
+```
+
+**Pick the largest icon found** (ideally 1024×1024 for App Store). If multiple candidates exist, prefer:
+1. `AppIcon` in `.xcassets` (exact iOS icon)
+2. Expo `icon` field from `app.json`
+3. Any file named `app-icon.png` or `icon.png` at 512px+
+4. Logo files as last resort
+
+**If found**: Tell the user "I found your app icon at `path/to/icon.png` — I'll use this." and move on.
+**If not found**: Ask "Where is your app icon PNG?"
+
+#### Brand Colors Auto-Detection
+
+Try to extract brand colors from the project:
+
+```bash
+# Check for theme/color config files
+find . -name "colors.ts" -o -name "colors.js" -o -name "theme.ts" -o -name "theme.js" | head -5
+find . -name "tailwind.config.*" | head -1
+
+# Check for CSS custom properties
+grep -r "--color-primary\|--brand\|--accent" --include="*.css" --include="*.scss" -l | head -3
+
+# iOS: check Asset catalog for accent color
+find . -path "*/AccentColor*" -name "Contents.json" | head -1
+
+# Expo/RN: check app.json for primaryColor
+cat app.json 2>/dev/null | grep -o '"primaryColor":\s*"[^"]*"'
+```
+
+Look for primary/accent colors in theme files, Tailwind config (`colors.primary`, `colors.brand`), or CSS variables. Extract hex values.
+
+**If found**: Tell the user "I found your brand colors: primary `#HEXVAL`, accent `#HEXVAL` — I'll use these. Want to adjust?"
+**If not found**: Ask "What are your brand colors?"
+
+#### Font Auto-Detection
+
+```bash
+# Check layout.tsx or global CSS for font imports
+grep -r "next/font\|@font-face\|font-family" --include="*.tsx" --include="*.ts" --include="*.css" src/ | head -5
+
+# Check for Google Fonts imports
+grep -r "fonts.googleapis.com\|next/font/google" --include="*.tsx" --include="*.ts" --include="*.html" | head -5
+
+# Check Tailwind config for fontFamily
+grep -A5 "fontFamily" tailwind.config.* 2>/dev/null
+```
+
+**If found**: Use the project's font. Don't ask.
+**If not found**: Ask "What font does your app use?"
+
 ### Required
+
+After auto-detection, only ask questions you couldn't answer automatically:
 
 1. **Target platforms** — "Which platforms do you need screenshots for? (iPhone, iPad, Apple Watch, Mac — select all that apply)"
 2. **Device model** — "Which device mockup do you want? See the available models below."
 3. **App screenshots** — "Where are your app screenshots? (PNG files of actual device captures)"
-4. **App icon** — "Where is your app icon PNG?"
-5. **Brand colors** — "What are your brand colors? (accent color, text color, background preference)"
-6. **Font** — "What font does your app use? (or what font do you want for the screenshots?)"
+4. **App icon** — *(auto-detect first — only ask if not found)*
+5. **Brand colors** — *(auto-detect first — only ask if not found)*
+6. **Font** — *(auto-detect first — only ask if not found)*
 7. **Feature list** — "List your app's features in priority order. What's the #1 thing your app does?"
 8. **Number of slides** — "How many screenshots do you want? (Apple allows up to 10 per device type)"
 9. **Style direction** — "What style do you want? Examples: warm/organic, dark/moody, clean/minimal, bold/colorful, gradient-heavy, flat. Share App Store screenshot references if you have any."
@@ -131,6 +214,17 @@ cp mockups/ipad/ipad-pro-13-portrait.png public/mockups/
 ```
 
 Also copy the legacy `mockup.png` to `public/` if the user selects the generic iPhone frame.
+
+### Copy App Icon
+
+Copy the auto-detected (or user-provided) app icon to the project's `public/` directory:
+
+```bash
+# Copy from wherever it was found (auto-detected or user-specified)
+cp /path/to/detected/AppIcon.png public/app-icon.png
+```
+
+If the icon is larger than 1024×1024, it's fine — it will be displayed at smaller sizes in the screenshots. If it's an `.xcassets` folder, pick the largest PNG inside it.
 
 ### File Structure
 
