@@ -78,12 +78,14 @@ Present this list to the user when asking about device model:
 
 ### Derived from answers (do NOT ask — decide yourself)
 
-Based on the user's style direction, brand colors, and app aesthetic, decide:
-- **Background style**: gradient direction, colors, whether light or dark base
-- **Decorative elements**: blobs, glows, geometric shapes, or none — match the style
-- **Dark vs light slides**: how many of each, which features suit dark treatment
-- **Typography treatment**: weight, tracking, line height — match the brand personality
-- **Color palette**: derive text colors, secondary colors, shadow tints from the brand colors
+Based on the user's style direction, brand colors, and app aesthetic, decide (see **Step 5: Visual Design Craft** for detailed guidance):
+- **Visual personality**: dark & premium, clean & minimal, bold & vivid, warm & organic, or sophisticated & trust
+- **Color palette**: derive full palette from brand accent — backgrounds, text hierarchy, glow colors, glass tints
+- **Background style**: multi-stop gradient direction/colors, light vs dark base per slide
+- **Depth strategy**: glassmorphism, layered shadows, flat borders, or surface color shifts — pick one and commit
+- **Decorative elements**: light sources, glass panels, vignettes, noise textures — match the personality
+- **Dark vs light slides**: how many of each, which features suit dark treatment (minimum 1 contrast slide per 6)
+- **Typography treatment**: weight, tracking, line height, text-shadow — match the brand personality
 
 **IMPORTANT:** If the user gives additional instructions at any point during the process, follow them. User instructions always override skill defaults.
 
@@ -239,7 +241,301 @@ Get all headlines approved before building layouts. Bad copy ruins good design.
 - **Turf** — ultra-simple action verbs, conversational
 - **Mela / Notion** — warm, minimal, elegant
 
-## Step 5: Localization
+## Step 5: Visual Design Craft
+
+This section teaches you to build premium visual treatments that make screenshots feel like they were designed by a top-tier agency. These techniques are all **html-to-image compatible** — no backdrop-filter, no CSS blend modes that break during export.
+
+### Choose a Visual Personality
+
+Before designing slides, commit to a visual direction. Match it to the app's personality:
+
+| Personality | Background | Depth | Feeling |
+|-------------|-----------|-------|---------|
+| **Dark & Premium** | Deep navy/emerald/charcoal, multi-stop gradients | Glass panels, layered shadows, light sources | Stripe, Linear, pro tools |
+| **Clean & Minimal** | White/cream (#F8F7F4), subtle tinted radials | Single subtle shadows, thin borders | Notion, Mela, lifestyle apps |
+| **Bold & Vivid** | Saturated gradients, high contrast | Hard shadows, sharp edges, no glass | Fitness apps, games, youth |
+| **Warm & Organic** | Warm cream/peach, soft blobs | Soft shadows, rounded everything | Food apps, wellness, social |
+| **Sophisticated & Trust** | Cool slate/blue-gray, layered surfaces | Layered shadows, surface color shifts | Finance, health, enterprise |
+
+**Pick one. Commit. Don't mix.** A dark glassmorphism slide next to a flat minimal slide looks broken, not eclectic.
+
+### Color Palette Derivation
+
+Start with the user's brand accent color and derive a full palette:
+
+```typescript
+// Given: brand accent (e.g., emerald #10B981)
+const PALETTE = {
+  // Dark slide backgrounds — desaturate + darken the accent
+  darkBg: "linear-gradient(170deg, #0A0F1E, #041F17, #0D3D2E)",  // navy → deep accent
+  darkBgAlt: "linear-gradient(165deg, #0A1628, #0E3B3B, #0D2D2D)", // cooler variant
+
+  // Light slide backgrounds — warm neutral + faint accent radial
+  lightBg: "#F8F7F4",  // warm white (never pure #FFFFFF)
+  lightAccentGlow: "radial-gradient(ellipse at 60% 40%, rgba(16,185,129,0.06), transparent 70%)",
+
+  // Text — 4-level contrast hierarchy
+  textPrimary: "#FFFFFF",       // dark slides
+  textSecondary: "rgba(255,255,255,0.7)",
+  textMuted: "rgba(255,255,255,0.5)",
+  textFaint: "rgba(255,255,255,0.3)",
+
+  // Light slide text
+  lightTextPrimary: "#111827",
+  lightTextSecondary: "#6B7280",
+
+  // Glow/light source colors — accent at varying opacities
+  glowPrimary: "rgba(16,185,129,0.25)",   // strongest
+  glowSecondary: "rgba(16,185,129,0.15)", // medium
+  glowTertiary: "rgba(16,185,129,0.08)",  // ambient
+
+  // Glass tint — accent at near-invisible opacity
+  glassTint: "rgba(16,185,129,0.06)",
+};
+```
+
+**Rules:**
+- Dark backgrounds are NEVER pure black — always tinted toward the brand color
+- Light backgrounds are NEVER pure white — use warm whites (#F8F7F4, #FAFAF8) or cool whites (#F8FAFC)
+- Each slide should have a slightly different color temperature for variety
+- Label colors should use a lighter tint of the accent (e.g., #6EE7B7 or #A7F3D0 for emerald)
+
+### Glassmorphism (html-to-image Compatible)
+
+`backdrop-filter: blur()` does NOT work in html-to-image exports. Simulate frosted glass with these layered techniques:
+
+#### Glass Panel Component
+
+```typescript
+// Multi-stop gradient frost (simulates blur)
+const glassBg = mode === "dark"
+  ? "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.14) 100%)"
+  : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.80) 100%)";
+
+// 8-layer inset box-shadow border simulation
+const glassShadow = [
+  "inset 0 1px 0 rgba(255,255,255,0.25)",     // top edge (brightest)
+  "inset 1px 0 0 rgba(255,255,255,0.10)",      // left edge
+  "inset 0 -1px 0 rgba(255,255,255,0.04)",     // bottom edge (subtle)
+  "inset -1px 0 0 rgba(255,255,255,0.04)",     // right edge (subtle)
+  "inset 0 0 20px -5px rgba(255,255,255,0.10)",// inner glow
+  "0 1px 2px rgba(0,0,0,0.10)",                // tight shadow
+  "0 4px 16px rgba(0,0,0,0.08)",               // medium shadow
+  "0 12px 48px rgba(0,0,0,0.12)",              // ambient shadow
+].join(", ");
+```
+
+#### Glass Panel Layers (inside-out)
+
+1. **Background**: Multi-stop gradient (not flat rgba)
+2. **Accent tint**: Brand color at 4-8% opacity, also as gradient
+3. **Noise texture**: SVG feTurbulence as data-URI background — adds grain
+4. **Top-edge shine**: 1px gradient line across top (transparent → white → transparent)
+5. **Content**: The actual text/elements on top
+
+```tsx
+// SVG noise texture overlay (inline data URI)
+const noiseTexture = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
+
+// Apply as absolute-positioned overlay at low opacity (0.06-0.12)
+// with mixBlendMode: "overlay"
+```
+
+**Do NOT use `border:` on glass panels.** The inset box-shadow approach looks far better — it creates a natural edge fade rather than a hard line.
+
+### Depth Techniques
+
+#### Layered Shadows (Stripe-style)
+
+For cards, pills, floating elements — create realistic depth with multiple shadow layers:
+
+```typescript
+// Light mode — subtle lift
+const cardShadowLight = [
+  "0 0 0 0.5px rgba(0,0,0,0.05)",  // hairline border
+  "0 1px 2px rgba(0,0,0,0.04)",     // contact shadow
+  "0 2px 4px rgba(0,0,0,0.03)",     // near shadow
+  "0 4px 8px rgba(0,0,0,0.02)",     // ambient
+].join(", ");
+
+// Dark mode — glow + depth
+const cardShadowDark = [
+  "inset 0 1px 0 rgba(255,255,255,0.10)",  // top shine
+  "0 1px 2px rgba(0,0,0,0.20)",
+  "0 4px 16px rgba(0,0,0,0.15)",
+  "0 12px 48px rgba(0,0,0,0.20)",
+].join(", ");
+
+// Feature pills — tinted glass
+const pillShadow = [
+  "inset 0 1px 0 rgba(255,255,255,0.15)",
+  "0 1px 3px rgba(0,0,0,0.12)",
+  "0 2px 8px rgba(0,0,0,0.08)",
+].join(", ");
+```
+
+#### Light Sources (Organic Shapes)
+
+Light sources create ambient glow behind glass panels and devices. Make them organic — not perfect circles:
+
+```tsx
+function LightSource({ color, size, top, left, opacity, blur }: {
+  color: string; size: number; top: string; left: string;
+  opacity: number; blur: number;
+}) {
+  return (
+    <div style={{
+      position: "absolute",
+      width: size,
+      height: size * 0.92,                        // slightly squashed
+      borderRadius: "45% 55% 50% 50%",            // organic shape
+      background: `radial-gradient(ellipse at 40% 40%, ${color}, transparent 70%)`,
+      top, left,
+      filter: `blur(${blur}px)`,
+      opacity,
+      zIndex: 0,
+    }} />
+  );
+}
+```
+
+**Light source rules:**
+- Every dark slide needs 2-3 light sources minimum
+- Position them off-center — behind where the glass panel or device sits
+- Vary color temperature: primary accent, lighter tint, complementary
+- Use large blur values (80-150px) for ambient, smaller (40-60px) for focused
+- Opacity between 0.08 (ambient) and 0.25 (primary) — too bright kills the mood
+
+#### Vignette Overlay
+
+Vignette draws focus to the center and adds cinematic depth. Apply to all dark slides:
+
+```typescript
+const vignette = {
+  position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none",
+  background: "radial-gradient(ellipse 75% 70% at 50% 45%, transparent 30%, rgba(0,0,0,0.30) 100%)",
+};
+```
+
+Adjust the 75%/70% ellipse size per slide — tighter for focused slides, wider for panoramic ones.
+
+#### Device Glow
+
+Add a radial glow beneath the device mockup to make it float:
+
+```typescript
+// Glow div placed behind the phone/device
+const deviceGlow = {
+  position: "absolute",
+  width: "40%",
+  height: "20%",
+  bottom: "8%",
+  left: "50%",
+  transform: "translateX(-50%)",
+  background: "radial-gradient(ellipse, rgba(16,185,129,0.18), transparent 70%)",
+  filter: "blur(40px)",
+  zIndex: 0,
+};
+```
+
+### Typography Craft
+
+#### Weight & Tracking System
+
+| Element | Font Size | Weight | Letter-Spacing | Line Height |
+|---------|-----------|--------|----------------|-------------|
+| Hero headline | `W * 0.10` | 700 | `-0.03em` | 0.92 |
+| Slide headline | `W * 0.09` | 700 | `-0.02em` | 1.0–1.05 |
+| Category label | `W * 0.028` | 600 | `0.08em` | default |
+| Feature pill | `W * 0.028` | 600 | `0.02em` | default |
+| Coming soon pill | `W * 0.024` | 500 | `0.02em` | default |
+
+**Key rules:**
+- **Headlines get negative tracking** — tighter letters feel premium and confident
+- **Labels get positive tracking** — wider letters feel organized and structured
+- **Line height < 1.0 for hero** — lines should almost touch for dramatic impact
+- **Never go below 0.92 line height** — text becomes illegible
+
+#### Text Shadow for Depth
+
+On dark backgrounds, headlines benefit from a subtle glow + shadow:
+
+```typescript
+const headlineTextShadow = "0 0 40px rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.3)";
+```
+
+The white glow creates a subtle halo (premium feel), and the black shadow adds separation from the background. Only apply to white/light text on dark backgrounds.
+
+### Background Composition
+
+#### Multi-Stop Gradients
+
+Never use 2-color gradients — they look flat. Always use 3+ stops:
+
+```typescript
+// Bad: flat gradient
+"linear-gradient(180deg, #0A0F1E, #064E3B)"
+
+// Good: dimensional gradient with color curve
+"linear-gradient(170deg, #0A0F1E 0%, #041F17 40%, #064E3B 70%, #0D3D2E 100%)"
+```
+
+**Vary the angle** per slide: 165deg, 170deg, 175deg — subtle differences create variety.
+
+#### Bottom Fade (Phone Bleed)
+
+When the phone extends past the bottom edge, add a fade so it doesn't look clipped:
+
+```typescript
+const bottomFade = {
+  position: "absolute",
+  bottom: 0, left: 0, right: 0,
+  height: "5%",
+  background: "linear-gradient(to bottom, transparent 0%, <slide-bg-color> 100%)",
+  zIndex: 5, // above phone, below nothing
+};
+```
+
+Match the fade color to the slide's dominant bottom-edge background color.
+
+### Visual Rhythm Across Slides
+
+**Slide contrast pattern** — alternate moods to keep the eye engaged:
+
+| Slide | Mood | Example |
+|-------|------|---------|
+| 1 | Dark (hero) | Deep navy, dramatic glow |
+| 2 | Light (contrast) | Warm white, clean |
+| 3 | Dark (deep) | Emerald tones, moody |
+| 4 | Dark (cool) | Teal/cyan shift, differentiated |
+| 5 | Dark (navy) | Back to navy, different layout |
+| 6 | Dark (features) | Navy, glass card with pills |
+
+**Rules:**
+- At least 1 light slide per 6 slides (usually slide 2 or 3)
+- No two adjacent slides should share the same gradient direction
+- Vary phone position every slide (center → right → center → two-phone → right → no-phone)
+- Each dark slide should have a different color temperature (navy, emerald, teal, charcoal)
+- Label colors should differ between slides that share a background mood — use accent tints (#6EE7B7, #67E8F9, #A7F3D0)
+
+### What NOT to Use (html-to-image Breaks)
+
+These CSS features look great in the browser but **break or disappear** during html-to-image export:
+
+| Feature | Why it breaks | Alternative |
+|---------|--------------|-------------|
+| `backdrop-filter: blur()` | Not supported in SVG serialization | Multi-stop gradient frost |
+| `background-clip: text` | Renders as invisible text | Use solid text color + text-shadow |
+| `mix-blend-mode` on complex elements | Inconsistent rendering | Use opacity + layering |
+| CSS `filter: blur()` on text | Sometimes renders blank | Use text-shadow for glow |
+| `clip-path` with complex shapes | Partial support | Use border-radius + overflow hidden |
+| Web fonts not in layout.tsx | Renders as system font | Always register fonts via next/font |
+| `position: fixed` elements | Captured at wrong position | Use `position: absolute` |
+| CSS animations/transitions | Captures mid-state or blank | Set final state, no transitions |
+
+**Always test every visual effect by exporting.** If it looks good in the browser but bad in the PNG, it's useless.
+
+## Step 6: Localization
 
 ### Translations Data Structure
 
@@ -473,7 +769,7 @@ function getHeadlineSize(locale: string, baseSize: number): number {
 }
 ```
 
-## Step 6: Build the Page (see Step 5 for Localization)
+## Step 7: Build the Page (see Step 5 for Visual Design, Step 6 for Localization)
 
 ### Architecture
 
@@ -929,7 +1225,7 @@ Watch: left side, width: "25%", translateY(15%)
 
 Dark/contrast background with app icon, headline ("And so much more."), and feature pills. Can include a "Coming Soon" section with dimmer pills.
 
-## Step 7: Export
+## Step 8: Export
 
 ### Why html-to-image, NOT html2canvas
 
