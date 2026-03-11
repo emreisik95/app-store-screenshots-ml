@@ -294,6 +294,42 @@ const PALETTE = {
 };
 ```
 
+#### Programmatic Palette from Any Accent
+
+Don't hardcode emerald. Derive the palette from any brand color using HSL:
+
+```typescript
+function hexToHSL(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+function derivePalette(accentHex: string) {
+  const [h, s, l] = hexToHSL(accentHex);
+  return {
+    darkBg: `linear-gradient(170deg, hsl(${h + 10}, ${Math.min(s, 20)}%, 7%) 0%, hsl(${h}, ${Math.min(s, 30)}%, 12%) 50%, hsl(${h - 5}, ${Math.min(s, 25)}%, 15%) 100%)`,
+    lightBg: "#F8F7F4",
+    glowPrimary: `hsla(${h}, ${s}%, ${l}%, 0.25)`,
+    glowSecondary: `hsla(${h}, ${s}%, ${l}%, 0.15)`,
+    glowTertiary: `hsla(${h}, ${s}%, ${l}%, 0.08)`,
+    glassTint: `hsla(${h}, ${s}%, ${l}%, 0.06)`,
+    labelColor: `hsl(${h}, ${Math.min(s, 70)}%, 75%)`,
+  };
+}
+```
+
 **Rules:**
 - Dark backgrounds are NEVER pure black — always tinted toward the brand color
 - Light backgrounds are NEVER pure white — use warm whites (#F8F7F4, #FAFAF8) or cool whites (#F8FAFC)
@@ -338,10 +374,67 @@ const glassShadow = [
 const noiseTexture = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
 // Apply as absolute-positioned overlay at low opacity (0.06-0.12)
-// with mixBlendMode: "overlay"
+// NOTE: Do NOT use mixBlendMode — it breaks in html-to-image.
+// Simply use opacity alone — the SVG noise at low opacity creates sufficient grain.
 ```
 
 **Do NOT use `border:` on glass panels.** The inset box-shadow approach looks far better — it creates a natural edge fade rather than a hard line.
+
+#### Complete GlassPanel Component
+
+```tsx
+function GlassPanel({ mode = "dark", accentColor = "rgba(16,185,129,0.06)", children, style, className = "" }: {
+  mode?: "dark" | "light";
+  accentColor?: string;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const bg = mode === "dark"
+    ? "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.14) 100%)"
+    : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.80) 100%)";
+
+  const shadow = mode === "dark"
+    ? [
+        "inset 0 1px 0 rgba(255,255,255,0.25)",
+        "inset 1px 0 0 rgba(255,255,255,0.10)",
+        "inset 0 -1px 0 rgba(255,255,255,0.04)",
+        "inset -1px 0 0 rgba(255,255,255,0.04)",
+        "inset 0 0 20px -5px rgba(255,255,255,0.10)",
+        "0 1px 2px rgba(0,0,0,0.10)",
+        "0 4px 16px rgba(0,0,0,0.08)",
+        "0 12px 48px rgba(0,0,0,0.12)",
+      ].join(", ")
+    : [
+        "inset 0 1px 0 rgba(255,255,255,0.60)",
+        "0 0 0 0.5px rgba(0,0,0,0.05)",
+        "0 1px 2px rgba(0,0,0,0.04)",
+        "0 4px 8px rgba(0,0,0,0.03)",
+      ].join(", ");
+
+  return (
+    <div className={className} style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
+      {/* Glass background */}
+      <div style={{ position: "absolute", inset: 0, background: bg, boxShadow: shadow }} />
+      {/* Accent tint */}
+      <div style={{ position: "absolute", inset: 0, background: accentColor }} />
+      {/* Noise texture */}
+      <div style={{
+        position: "absolute", inset: 0, opacity: 0.08,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        backgroundSize: "150px 150px",
+      }} />
+      {/* Top-edge shine */}
+      <div style={{
+        position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+      }} />
+      {/* Content */}
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+    </div>
+  );
+}
+```
 
 ### Depth Techniques
 
@@ -419,6 +512,24 @@ const vignette = {
 
 Adjust the 75%/70% ellipse size per slide — tighter for focused slides, wider for panoramic ones.
 
+#### Screen Reflection Overlay
+
+Add a subtle diagonal shine across the device screen for realism:
+
+```typescript
+// Place inside the DeviceMockup component, above the screenshot
+const screenReflection = {
+  position: "absolute" as const,
+  left: `${scrL}%`, top: `${scrT}%`,
+  width: `${scrW}%`, height: `${scrH}%`,
+  background: "linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)",
+  zIndex: 3, // above frame
+  pointerEvents: "none" as const,
+};
+```
+
+Use sparingly — opacity above 0.08 makes it look fake.
+
 #### Device Glow
 
 Add a radial glow beneath the device mockup to make it float:
@@ -446,9 +557,17 @@ const deviceGlow = {
 |---------|-----------|--------|----------------|-------------|
 | Hero headline | `W * 0.10` | 700 | `-0.03em` | 0.92 |
 | Slide headline | `W * 0.09` | 700 | `-0.02em` | 1.0–1.05 |
+| Subheadline | `W * 0.038` | 500 | `0em` | 1.3 |
 | Category label | `W * 0.028` | 600 | `0.08em` | default |
 | Feature pill | `W * 0.028` | 600 | `0.02em` | default |
 | Coming soon pill | `W * 0.024` | 500 | `0.02em` | default |
+
+**Subheadlines** are optional supporting text below the main headline. Use them sparingly — most slides are stronger with just a label + headline. Use subheadlines only when the headline alone doesn't convey enough context (e.g., "Share a link. Start planning instantly.").
+
+**Text positioning safe zones:**
+- Top caption: `top: 5-8%`, `left/right: 6-8%` from edges
+- Never place text in the bottom 30% — that's where the device sits
+- Keep at least `W * 0.06` padding from left/right edges
 
 **Key rules:**
 - **Headlines get negative tracking** — tighter letters feel premium and confident
@@ -481,6 +600,8 @@ Never use 2-color gradients — they look flat. Always use 3+ stops:
 ```
 
 **Vary the angle** per slide: 165deg, 170deg, 175deg — subtle differences create variety.
+
+**Prevent gradient banding**: Dark gradients with subtle color shifts can show visible banding in PNG exports. Combat this by adding the SVG noise texture overlay (from the Glass Panel section) at 0.03-0.06 opacity over the entire slide background. The grain breaks up smooth gradients and prevents banding artifacts.
 
 #### Bottom Fade (Phone Bleed)
 
@@ -526,8 +647,9 @@ These CSS features look great in the browser but **break or disappear** during h
 |---------|--------------|-------------|
 | `backdrop-filter: blur()` | Not supported in SVG serialization | Multi-stop gradient frost |
 | `background-clip: text` | Renders as invisible text | Use solid text color + text-shadow |
-| `mix-blend-mode` on complex elements | Inconsistent rendering | Use opacity + layering |
-| CSS `filter: blur()` on text | Sometimes renders blank | Use text-shadow for glow |
+| `mix-blend-mode` on complex elements | Inconsistent rendering | Use opacity + layering instead |
+| CSS `filter: blur()` on text | Sometimes renders blank | Use text-shadow for glow effects |
+| CSS `filter: blur()` on decorative divs | Works in most browsers but can fail in Safari SVG serialization | Test exports; if glow divs disappear, replace with larger `radial-gradient` at lower opacity |
 | `clip-path` with complex shapes | Partial support | Use border-radius + overflow hidden |
 | Web fonts not in layout.tsx | Renders as system font | Always register fonts via next/font |
 | `position: fixed` elements | Captured at wrong position | Use `position: absolute` |
@@ -650,7 +772,8 @@ You can use simplified codes (e.g., `en` instead of `en-US`) internally and map 
 ```tsx
 // src/app/layout.tsx
 // 1. ALWAYS import the user's project font first — this is the primary font
-import { Satoshi } from "next/font/google";  // ← Replace with user's actual font
+// Use next/font/google for Google Fonts, or next/font/local for custom fonts
+import { Inter } from "next/font/google";  // ← Replace with user's actual font
 
 // 2. Only import Noto variants for non-Latin scripts the user selected
 import { Noto_Sans_JP } from "next/font/google";             // Japanese
@@ -663,7 +786,7 @@ import { Noto_Sans_Thai } from "next/font/google";           // Thai
 import { Noto_Sans_Devanagari } from "next/font/google";     // Hindi
 
 // Project font — used for ALL Latin-script languages
-const projectFont = Satoshi({ subsets: ["latin"], weight: ["400", "600", "700"] });
+const projectFont = Inter({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
 // Non-Latin script fonts (only import what's needed)
 const notoJP = Noto_Sans_JP({ subsets: ["latin"], weight: ["400", "600", "700"] });
@@ -773,7 +896,10 @@ function getHeadlineSize(locale: string, baseSize: number): number {
 
 ### Architecture
 
+**IMPORTANT:** `page.tsx` must start with `"use client"` — it uses `useState`, `useRef`, `useEffect`, `ResizeObserver`, and `html-to-image` which are all client-side APIs.
+
 ```
+"use client";
 page.tsx
 ├── Constants (W, H, SIZES, DEVICE_CONFIG, design tokens)
 ├── translations object (all locales × all slides)
@@ -789,6 +915,18 @@ page.tsx
 ├── exportAsZip() + resizeToBlob() (jszip-based ZIP export)
 └── ScreenshotsPage (grid + toolbar + language selector + platform tabs)
 ```
+
+### Canvas Constants
+
+Define the design canvas size — all slides are designed at this resolution and scaled down for export:
+
+```typescript
+// Design at the largest iPhone size — everything scales down from here
+const W = 1260;   // canvas width (iPhone 6.9" width)
+const H = 2736;   // canvas height (iPhone 6.9" height)
+```
+
+For iPad-first projects, use `W = 2064, H = 2752`. For Mac-first, use `W = 2880, H = 1800`. All typography, spacing, and element sizing reference `W` and `H` throughout this document.
 
 ### Device Types & Export Sizes
 
@@ -1221,6 +1359,68 @@ Phone: right side, width: "55%"
 Watch: left side, width: "25%", translateY(15%)
 ```
 
+### App Icon Glow (Hero Slide)
+
+For hero slides that feature the app icon, add a glow behind it:
+
+```tsx
+function AppIconGlow({ iconSrc, size, glowColor, style }: {
+  iconSrc: string; size: number; glowColor: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div style={{ position: "relative", width: size, height: size, ...style }}>
+      {/* Glow behind icon */}
+      <div style={{
+        position: "absolute", inset: -size * 0.3,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, ${glowColor}, transparent 70%)`,
+        filter: `blur(${size * 0.25}px)`,
+      }} />
+      {/* Icon with rounded corners */}
+      <img src={iconSrc} alt="" style={{
+        position: "relative", zIndex: 1,
+        width: size, height: size,
+        borderRadius: size * 0.224, // Apple's exact corner radius ratio
+      }} draggable={false} />
+    </div>
+  );
+}
+```
+
+### Feature Pills (More Features Slide)
+
+Styled pills for the "More Features" slide with glass treatment:
+
+```tsx
+function FeaturePill({ text, accentColor = "rgba(16,185,129,0.10)", isComingSoon = false }: {
+  text: string; accentColor?: string; isComingSoon?: boolean;
+}) {
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: W * 0.012,
+      padding: `${W * 0.018}px ${W * 0.03}px`,
+      borderRadius: W * 0.02,
+      background: isComingSoon ? "rgba(255,255,255,0.04)" : accentColor,
+      boxShadow: [
+        `inset 0 1px 0 rgba(255,255,255,${isComingSoon ? 0.06 : 0.15})`,
+        `0 1px 3px rgba(0,0,0,0.12)`,
+        `0 2px 8px rgba(0,0,0,0.08)`,
+      ].join(", "),
+      fontSize: W * 0.028,
+      fontWeight: 600,
+      letterSpacing: "0.02em",
+      color: isComingSoon ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.9)",
+    }}>
+      {text}
+      {isComingSoon && (
+        <span style={{ fontSize: W * 0.022, opacity: 0.6, fontWeight: 500 }}>Soon</span>
+      )}
+    </div>
+  );
+}
+```
+
 ### "More Features" Slide (Optional)
 
 Dark/contrast background with app icon, headline ("And so much more."), and feature pills. Can include a "Coming Soon" section with dimmer pills.
@@ -1269,28 +1469,28 @@ The ZIP organizes files by **language → device type → size** so the user can
 ```
 app-store-screenshots.zip
 ├── en/
-│   ├── iPhone 6.9"/
+│   ├── iPhone 6.9in/
 │   │   ├── 01-hero.png
 │   │   ├── 02-freshness.png
 │   │   └── ...
-│   ├── iPhone 6.5"/
+│   ├── iPhone 6.5in/
 │   │   ├── 01-hero.png
 │   │   └── ...
-│   ├── iPhone 6.3"/
+│   ├── iPhone 6.3in/
 │   │   └── ...
-│   ├── iPhone 6.1"/
+│   ├── iPhone 6.1in/
 │   │   └── ...
-│   ├── iPad 13"/
+│   ├── iPad 13in/
 │   │   ├── 01-hero.png
 │   │   └── ...
-│   ├── iPad 11"/
+│   ├── iPad 11in/
 │   │   └── ...
-│   ├── Mac/
+│   ├── Mac Retina/
 │   │   └── ...
-│   └── Watch/
+│   └── Watch Ultra 3/
 │       └── ...
 ├── de/
-│   ├── iPhone 6.9"/
+│   ├── iPhone 6.9in/
 │   │   ├── 01-hero.png
 │   │   └── ...
 │   └── ...
@@ -1302,7 +1502,7 @@ app-store-screenshots.zip
 
 **Folder naming rules:**
 - Language folders use the locale code: `en`, `de`, `ja`, `ar`, `zh-Hans`, etc.
-- Device folders use Apple's display size labels: `iPhone 6.9"`, `iPhone 6.5"`, `iPad 13"`, `Mac`, `Watch`
+- Device folders use `in` instead of `"` for inches: `iPhone 6.9in`, `iPad 13in` — avoids filesystem issues on Windows
 - File names are zero-padded slide index + slug: `01-hero.png`, `02-freshness.png`, etc.
 - **No resolution in filename** — the folder already identifies the size, and each folder contains only one resolution
 - For single-language projects, skip the language folder: `iPhone 6.9"/01-hero.png`
@@ -1316,34 +1516,46 @@ import JSZip from "jszip";
 import { toPng } from "html-to-image";
 
 // Device type to folder name mapping
+// IMPORTANT: Use inch mark (in) instead of typographic quotes (") in folder names
+// to avoid filesystem issues on Windows and in ZIP archives
 const DEVICE_FOLDER: Record<string, Record<string, string>> = {
   iphone: {
-    '1260x2736': 'iPhone 6.9"',
-    '1284x2778': 'iPhone 6.5"',
-    '1206x2622': 'iPhone 6.3"',
-    '1125x2436': 'iPhone 6.1"',
+    '1260x2736': 'iPhone 6.9in',
+    '1284x2778': 'iPhone 6.5in',
+    '1242x2688': 'iPhone 6.5in',
+    '1206x2622': 'iPhone 6.3in',
+    '1179x2556': 'iPhone 6.3in',
+    '1170x2532': 'iPhone 6.1in',
+    '1125x2436': 'iPhone 6.1in',
+    '1242x2208': 'iPhone 5.5in',
   },
   ipad: {
-    '2064x2752': 'iPad 13"',
-    '1668x2420': 'iPad 11"',
-    '1640x2360': 'iPad 11"',
-    '1488x2266': 'iPad 11"',
-    '2752x2064': 'iPad 13" Landscape',
-    '2420x1668': 'iPad 11" Landscape',
+    '2064x2752': 'iPad 13in',
+    '2048x2732': 'iPad 13in',
+    '1488x2266': 'iPad 11in',
+    '1668x2388': 'iPad 11in',
+    '1640x2360': 'iPad 11in',
+    '1668x2224': 'iPad 10.5in',
+    '1536x2048': 'iPad 9.7in',
+    // Landscape (swap dimensions)
+    '2752x2064': 'iPad 13in Landscape',
+    '2732x2048': 'iPad 13in Landscape',
+    '2266x1488': 'iPad 11in Landscape',
+    '2388x1668': 'iPad 11in Landscape',
   },
   watch: {
-    '410x502': 'Watch Ultra',
-    '396x484': 'Watch Series 10/11',
-    '374x448': 'Watch 49mm',
-    '352x430': 'Watch 45mm',
-    '344x422': 'Watch 44mm',
-    '324x394': 'Watch 40mm',
+    '422x514': 'Watch Ultra 3',
+    '410x502': 'Watch Ultra 2',
+    '416x496': 'Watch Series 10-11',
+    '396x484': 'Watch Series 7-9',
+    '368x448': 'Watch Series 4-6',
+    '312x390': 'Watch Series 3',
   },
   mac: {
-    '2880x1800': 'Mac',
-    '2560x1600': 'Mac',
-    '1920x1080': 'Mac',
-    '1440x900': 'Mac',
+    '2880x1800': 'Mac Retina',
+    '2560x1600': 'Mac Large',
+    '1440x900': 'Mac Medium',
+    '1280x800': 'Mac Small',
   },
 };
 
@@ -1441,7 +1653,7 @@ async function exportAsZip(config: ExportConfig, onProgress: (pct: number) => vo
 async function resizeToBlob(
   dataUrl: string, targetW: number, targetH: number
 ): Promise<Blob> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
@@ -1449,7 +1661,28 @@ async function resizeToBlob(
       canvas.height = targetH;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, targetW, targetH);
-      canvas.toBlob((blob) => resolve(blob!), "image/png");
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error(`toBlob returned null for ${targetW}x${targetH}`));
+        },
+        "image/png"
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image for resize"));
+    // Timeout safety — if image never loads, reject after 10s
+    const timeout = setTimeout(() => reject(new Error("Image load timeout")), 10000);
+    img.onload = function () {
+      clearTimeout(timeout);
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error("toBlob returned null")),
+        "image/png"
+      );
     };
     img.src = dataUrl;
   });
@@ -1506,6 +1739,87 @@ function ExportToolbar({ onExportCurrent, onExportAll, progress, isExporting }: 
 - Set `fontFamily` on the offscreen container — use the project's brand font.
 - **Numbered filenames**: Prefix exports with zero-padded index: `01-hero.png`, `02-freshness.png`. Use `String(index + 1).padStart(2, "0")`.
 - **Categorized folders inside ZIP**: Language → Device size → Files. Folder depth adjusts based on whether export is multi-language and/or multi-device (see folder structure above).
+
+### Export Robustness
+
+#### Font Embedding
+
+For faster and more reliable exports, pre-embed fonts before the export loop:
+
+```typescript
+import { toPng, getFontEmbedCSS } from "html-to-image";
+
+// Pre-compute font CSS once before the loop
+const fontCSS = await getFontEmbedCSS(firstSlideElement);
+
+// Use it in all subsequent toPng calls
+const opts = { width: W, height: H, pixelRatio: 1, cacheBust: true, fontEmbedCSS: fontCSS };
+```
+
+#### Error Handling
+
+Wrap each slide export in try-catch so one failure doesn't kill the entire batch:
+
+```typescript
+for (let i = 0; i < screenshots.length; i++) {
+  try {
+    // ... capture + resize logic ...
+    zip.file(zipPath, resizedBlob);
+  } catch (err) {
+    console.error(`Failed to export slide ${i + 1}:`, err);
+    // Continue with next slide — don't abort the entire export
+  }
+  done++;
+  onProgress(Math.round((done / total) * 100));
+}
+```
+
+#### Locale Switch Race Condition
+
+When switching locales during batch export, wait for BOTH state update AND font loading:
+
+```typescript
+// Instead of a fixed 500ms delay:
+setActiveLocale(locale);
+await new Promise((r) => setTimeout(r, 500));
+
+// Better: wait for render + verify fonts loaded
+setActiveLocale(locale);
+await new Promise((r) => setTimeout(r, 100)); // let React re-render
+await document.fonts.ready;                    // ensure fonts are loaded
+await new Promise((r) => setTimeout(r, 200)); // safety buffer for images
+```
+
+#### Memory Management for Large Exports
+
+When exporting many languages × devices × slides, the browser can run out of memory:
+
+```typescript
+// Process one locale at a time, clear refs between locales
+for (const locale of locales) {
+  // ... export all slides for this locale ...
+
+  // Release memory between locales
+  if (locales.length > 5) {
+    await new Promise((r) => setTimeout(r, 1000)); // GC breathing room
+  }
+}
+
+// Use toBlob instead of toPng to avoid base64 encoding overhead
+import { toBlob } from "html-to-image";
+const blob = await toBlob(el, opts);
+// Note: toBlob returns Blob directly — no base64 intermediate.
+// But still needs double-call trick for font warmup.
+```
+
+## Apple Compliance Notes
+
+- **No rounded corners on final export**: App Store Connect applies its own rounding — export with square corners
+- **No status bars**: Do not include fake status bars in screenshots — Apple rejects these
+- **Text-free safe zones**: Keep important text at least 5% from all edges — some devices crop edges slightly
+- **No "App Store" branding**: Don't include Apple logos, App Store badges, or "Available on the App Store" text in screenshots
+- **No pricing**: Don't show prices — they vary by region
+- **Accurate representation**: Screenshots must show actual app functionality — don't show features that don't exist
 
 ## Common Mistakes
 
